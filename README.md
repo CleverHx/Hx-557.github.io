@@ -9,6 +9,59 @@
 
 > 注意：GitHub Pages 只能托管静态 HTML/CSS/JS，不能直接运行 WordPress 所需的 PHP 和数据库。因此，“部署到这个仓库”的方式是把 WordPress 部署配置保存在仓库里，然后在一台 VPS/云服务器/NAS 上克隆仓库并运行 Docker Compose，公网通过域名访问。
 
+
+## 如何访问
+
+### 有域名和公网 IP（推荐）
+
+1. 在域名 DNS 控制台添加一条 `A` 记录，把你的域名解析到服务器公网 IP。
+   - 示例：`blog.example.com -> 你的服务器公网 IP`。
+2. 确认服务器安全组/防火墙已经放行 TCP `80` 和 `443`。
+3. 在服务器上启动服务：
+
+```bash
+docker compose up -d
+```
+
+4. 等待 1-3 分钟，让 Caddy 自动申请 HTTPS 证书。
+5. 浏览器访问：
+
+```text
+https://你的域名
+```
+
+如果是第一次打开，会进入 WordPress 安装向导；按页面提示设置站点标题、管理员账号和密码即可。
+
+### 只有服务器公网 IP，没有域名
+
+WordPress 可以先临时通过服务器 IP 访问，但 HTTPS 自动证书通常需要域名。临时调试时可在服务器本机或同网络环境中访问：
+
+```text
+http://服务器公网IP
+```
+
+正式公网访问建议绑定域名后使用：
+
+```text
+https://你的域名
+```
+
+### 没有公网 IP：使用 Cloudflare Tunnel
+
+如果服务器在 NAT 后面、家庭宽带里，或不能开放 `80/443` 端口，就使用 Cloudflare Tunnel。启动方式是：
+
+```bash
+docker compose --profile cloudflare-tunnel up -d db wordpress cloudflared
+```
+
+然后在 Cloudflare Zero Trust 里配置 Public Hostname，目标服务填：
+
+```text
+http://wordpress:80
+```
+
+配置完成后，浏览器访问你在 Cloudflare 里绑定的域名。
+
 ## 1. 准备服务器
 
 服务器需要：
