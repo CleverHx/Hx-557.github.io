@@ -1,0 +1,8 @@
+# Local deployment secrets
+.env
+.env.*
+!.env.example
+
+# Runtime/editor noise
+.DS_Store
+*.log
