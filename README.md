@@ -1,177 +1,64 @@
-# WordPress deployment for this repository
+# GitHub Pages 在线访问说明
 
-这个仓库现在包含一套可部署的 WordPress 生产环境配置：
+这个仓库已经按 **GitHub Pages 静态网站** 的方式配置，可以直接部署到 GitHub 并通过网页访问。
 
-- **WordPress + Apache/PHP**：运行站点应用。
-- **MariaDB**：保存 WordPress 数据。
-- **Caddy**：自动申请 HTTPS 证书，并把公网流量反代到 WordPress。
-- **Cloudflare Tunnel（可选）**：没有公网 IP 或不想开放 80/443 端口时使用。
+> 重要说明：真正的 WordPress 需要 PHP 运行时和 MySQL/MariaDB 数据库，GitHub Pages 只能托管静态 HTML/CSS/JavaScript，不能在 GitHub 上直接运行 WordPress 后台、插件、主题 PHP 或数据库。
+>
+> 所以如果目标是“直接放 GitHub 上，然后打开网址就能访问”，可行方案是部署当前仓库里的静态网页；如果一定要完整 WordPress 后台，则必须使用 VPS、虚拟主机、Render、Railway、Cloudflare Tunnel + 服务器等支持 PHP 和数据库的平台。
 
-> 注意：GitHub Pages 只能托管静态 HTML/CSS/JS，不能直接运行 WordPress 所需的 PHP 和数据库。因此，“部署到这个仓库”的方式是把 WordPress 部署配置保存在仓库里，然后在一台 VPS/云服务器/NAS 上克隆仓库并运行 Docker Compose，公网通过域名访问。
+## 访问地址
 
-
-## 如何访问
-
-### 有域名和公网 IP（推荐）
-
-1. 在域名 DNS 控制台添加一条 `A` 记录，把你的域名解析到服务器公网 IP。
-   - 示例：`blog.example.com -> 你的服务器公网 IP`。
-2. 确认服务器安全组/防火墙已经放行 TCP `80` 和 `443`。
-3. 在服务器上启动服务：
-
-```bash
-docker compose up -d
-```
-
-4. 等待 1-3 分钟，让 Caddy 自动申请 HTTPS 证书。
-5. 浏览器访问：
+这个仓库名是 `Hx-557.github.io`，属于 GitHub Pages 用户站点仓库。启用 GitHub Pages 后，公网访问地址通常是：
 
 ```text
-https://你的域名
+https://hx-557.github.io/
 ```
 
-如果是第一次打开，会进入 WordPress 安装向导；按页面提示设置站点标题、管理员账号和密码即可。
+如果你绑定了自定义域名，则访问你绑定的域名。
 
-### 只有服务器公网 IP，没有域名
+## 已添加的自动部署
 
-WordPress 可以先临时通过服务器 IP 访问，但 HTTPS 自动证书通常需要域名。临时调试时可在服务器本机或同网络环境中访问：
+仓库已添加 GitHub Actions 工作流：
 
 ```text
-http://服务器公网IP
+.github/workflows/deploy-pages.yml
 ```
 
-正式公网访问建议绑定域名后使用：
+它会在推送到 `work`、`main` 或 `master` 分支时，把仓库根目录的静态文件发布到 GitHub Pages。
+
+当前仓库根目录已有可访问的静态入口文件：
 
 ```text
-https://你的域名
+index.html
 ```
 
-### 没有公网 IP：使用 Cloudflare Tunnel
+因此部署完成后，浏览器打开 GitHub Pages 地址即可访问页面。
 
-如果服务器在 NAT 后面、家庭宽带里，或不能开放 `80/443` 端口，就使用 Cloudflare Tunnel。启动方式是：
+## 你需要在 GitHub 页面上开启一次 Pages
 
-```bash
-docker compose --profile cloudflare-tunnel up -d db wordpress cloudflared
-```
-
-然后在 Cloudflare Zero Trust 里配置 Public Hostname，目标服务填：
+1. 打开 GitHub 仓库页面。
+2. 进入 **Settings**。
+3. 左侧进入 **Pages**。
+4. 在 **Build and deployment** 里，把 **Source** 选择为 **GitHub Actions**。
+5. 回到仓库 **Actions** 页面，等待 `Deploy static site to GitHub Pages` 工作流执行成功。
+6. 成功后访问：
 
 ```text
-http://wordpress:80
+https://hx-557.github.io/
 ```
 
-配置完成后，浏览器访问你在 Cloudflare 里绑定的域名。
+## 如果访问不了，按这个顺序检查
 
-## 1. 准备服务器
+1. **Actions 是否成功**：进入仓库的 **Actions** 标签页，确认 `Deploy static site to GitHub Pages` 是绿色成功状态。
+2. **Pages Source 是否正确**：仓库 **Settings → Pages → Source** 必须选择 **GitHub Actions**。
+3. **仓库名是否正确**：用户站点仓库应是 `<你的 GitHub 用户名>.github.io`。当前仓库名是 `Hx-557.github.io`，访问地址对应 `https://hx-557.github.io/`。
+4. **等待 DNS/缓存刷新**：首次启用 GitHub Pages 后，通常需要等几十秒到几分钟。
+5. **文件是否存在**：仓库根目录必须有 `index.html`。
 
-服务器需要：
+## 如果你一定要 WordPress
 
-- Docker Engine 和 Docker Compose Plugin。
-- 一个已经解析到服务器公网 IP 的域名，例如 `blog.example.com`。
-- 防火墙/安全组放行 TCP `80` 和 `443`。
+GitHub Pages 无法直接运行完整 WordPress。可选方案：
 
-如果没有公网 IP，可以跳到下面的「Cloudflare Tunnel 方式」。
-
-## 2. 配置环境变量
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-至少修改这些值：
-
-```dotenv
-SITE_DOMAIN=你的域名
-ACME_EMAIL=你的邮箱
-WORDPRESS_DB_PASSWORD=一个强密码
-MARIADB_ROOT_PASSWORD=另一个强密码
-```
-
-不要把 `.env` 提交到 Git；仓库已经通过 `.gitignore` 忽略它。
-
-## 3. 启动 WordPress
-
-```bash
-docker compose up -d
-```
-
-查看状态：
-
-```bash
-docker compose ps
-```
-
-查看日志：
-
-```bash
-docker compose logs -f caddy wordpress db
-```
-
-当 Caddy 成功申请证书后，打开：
-
-```text
-https://你的域名
-```
-
-按 WordPress 页面提示完成初始化。
-
-## 4. Cloudflare Tunnel 方式（可选）
-
-适用于没有公网 IP、家庭宽带、NAT 后面的机器，或不想在服务器上开放 80/443 端口的情况。
-
-1. 在 Cloudflare Zero Trust 创建 Tunnel。
-2. 把 Public Hostname 指向服务：`http://wordpress:80`。
-3. 把 Tunnel Token 写入 `.env`：
-
-```dotenv
-CLOUDFLARE_TUNNEL_TOKEN=你的-token
-```
-
-4. 启动带 tunnel 的服务：
-
-```bash
-docker compose --profile cloudflare-tunnel up -d db wordpress cloudflared
-```
-
-这种方式下可以不启动 `caddy`，公网入口由 Cloudflare 提供。
-
-## 5. 常用维护命令
-
-备份数据库：
-
-```bash
-docker compose exec db mariadb-dump -u root -p wordpress > wordpress-backup.sql
-```
-
-备份站点文件：
-
-```bash
-docker run --rm -v hx-557githubio_wordpress_data:/data -v "$PWD":/backup alpine tar czf /backup/wordpress-files.tar.gz -C /data .
-```
-
-升级镜像：
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-停止服务：
-
-```bash
-docker compose down
-```
-
-彻底删除数据卷（危险，会清空站点和数据库）：
-
-```bash
-docker compose down -v
-```
-
-## 6. 文件说明
-
-- `docker-compose.yml`：WordPress、MariaDB、Caddy 和可选 Cloudflare Tunnel 服务定义。
-- `Caddyfile`：HTTPS 和反向代理配置。
-- `.env.example`：环境变量模板。
-- `uploads.ini`：WordPress 上传大小和 PHP 运行参数。
+- 用 WordPress 后台写文章，然后用静态导出插件导出 HTML，再提交到这个仓库，由 GitHub Pages 托管。
+- 把 WordPress 部署到支持 PHP + MySQL 的服务器或托管平台，再把域名解析过去。
+- 使用 Headless WordPress：WordPress 后台部署在服务器，GitHub Pages 只部署前端静态页面。
